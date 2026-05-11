@@ -4,13 +4,18 @@ import { supabase } from '@/lib/supabase'
 import Modal from '@/components/Modal'
 import { Plus, Pencil, Trash2, UserCheck, AlertCircle } from 'lucide-react'
 
+const PASS_OPTIONS   = ['1개월권', '원데이']
 const STATUS_OPTIONS = ['활성', '휴가', '탈퇴']
-const STATUS_COLOR = {
+const STATUS_COLOR   = {
   활성: 'bg-green-100 text-green-700',
   휴가: 'bg-yellow-100 text-yellow-700',
   탈퇴: 'bg-gray-100 text-gray-400',
 }
-const EMPTY = { name: '', occupation: '', contact: '', instagram: '', attendance_count: 0, issue: '', status: '활성', notes: '' }
+const PASS_COLOR = {
+  '1개월권': 'bg-brand/10 text-brand',
+  '원데이':  'bg-orange-100 text-orange-700',
+}
+const EMPTY = { name: '', occupation: '', contact: '', instagram: '', pass_type: '1개월권', attendance_count: 0, issue: '', status: '활성', notes: '' }
 
 export default function MembersPage() {
   const [members, setMembers] = useState([])
@@ -18,6 +23,7 @@ export default function MembersPage() {
   const [form, setForm] = useState(EMPTY)
   const [editId, setEditId] = useState(null)
   const [filter, setFilter] = useState('전체')
+  const [passFilter, setPassFilter] = useState('전체')
 
   const load = async () => {
     const { data } = await supabase.from('members').select('*').order('created_at')
@@ -47,15 +53,21 @@ export default function MembersPage() {
     load()
   }
 
-  const filtered = filter === '전체' ? members : members.filter(m => m.status === filter)
-  const activeCount = members.filter(m => m.status === '활성').length
+  const filtered = members
+    .filter(m => filter === '전체' || m.status === filter)
+    .filter(m => passFilter === '전체' || m.pass_type === passFilter)
+  const activeCount   = members.filter(m => m.status === '활성').length
+  const monthlyCount  = members.filter(m => m.pass_type === '1개월권' && m.status === '활성').length
+  const onedayCount   = members.filter(m => m.pass_type === '원데이'  && m.status === '활성').length
 
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h2 className="text-2xl font-bold text-gray-800">멤버 관리</h2>
-          <p className="text-sm text-gray-500 mt-1">총 {activeCount}명 활성 멤버</p>
+          <p className="text-sm text-gray-500 mt-1">
+            활성 {activeCount}명 · <span className="text-brand font-medium">1개월권 {monthlyCount}명</span> · <span className="text-orange-500 font-medium">원데이 {onedayCount}명</span>
+          </p>
         </div>
         <button onClick={openAdd}
           className="flex items-center gap-2 bg-brand text-white px-4 py-2.5 rounded-xl text-sm font-semibold hover:bg-brand-dark transition-colors">
@@ -63,11 +75,20 @@ export default function MembersPage() {
         </button>
       </div>
 
-      {/* Filter */}
+      {/* 패스 유형 필터 */}
+      <div className="flex gap-2 mb-3">
+        {['전체', ...PASS_OPTIONS].map(p => (
+          <button key={p} onClick={() => setPassFilter(p)}
+            className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${passFilter === p ? 'bg-brand text-white' : 'bg-white text-gray-500 border border-gray-200 hover:border-brand'}`}>
+            {p}
+          </button>
+        ))}
+      </div>
+      {/* 상태 필터 */}
       <div className="flex gap-2 mb-5">
         {['전체', ...STATUS_OPTIONS].map(s => (
           <button key={s} onClick={() => setFilter(s)}
-            className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${filter === s ? 'bg-brand text-white' : 'bg-white text-gray-500 border border-gray-200 hover:border-brand'}`}>
+            className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all text-xs ${filter === s ? 'bg-gray-700 text-white' : 'bg-white text-gray-400 border border-gray-200 hover:border-gray-400'}`}>
             {s}
           </button>
         ))}
@@ -78,7 +99,7 @@ export default function MembersPage() {
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 text-gray-500 text-xs border-b border-gray-100">
-              {['이름', '직업', '연락처', '인스타그램', '출석', '이슈', '상태', ''].map(h => (
+              {['이름', '패스', '직업', '연락처', '인스타그램', '출석', '이슈', '상태', ''].map(h => (
                 <th key={h} className="px-4 py-3 text-left font-semibold">{h}</th>
               ))}
             </tr>
@@ -89,6 +110,11 @@ export default function MembersPage() {
               : filtered.map(m => (
                 <tr key={m.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                   <td className="px-4 py-3.5 font-semibold text-gray-800">{m.name}</td>
+                  <td className="px-4 py-3.5">
+                    <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${PASS_COLOR[m.pass_type] || 'bg-gray-100 text-gray-500'}`}>
+                      {m.pass_type || '-'}
+                    </span>
+                  </td>
                   <td className="px-4 py-3.5 text-gray-500">{m.occupation || '-'}</td>
                   <td className="px-4 py-3.5 text-gray-600">{m.contact || '-'}</td>
                   <td className="px-4 py-3.5 text-gray-500">
@@ -118,6 +144,7 @@ export default function MembersPage() {
                     </div>
                   </td>
                 </tr>
+                </tr>
               ))
             }
           </tbody>
@@ -128,6 +155,18 @@ export default function MembersPage() {
       {modal && (
         <Modal title={editId ? '멤버 수정' : '멤버 추가'} onClose={() => setModal(false)}>
           <div className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-gray-600 mb-1">패스 유형</label>
+              <div className="flex gap-2">
+                {PASS_OPTIONS.map(p => (
+                  <button key={p} type="button" onClick={() => setForm(prev => ({ ...prev, pass_type: p }))}
+                    className={`flex-1 py-2 rounded-lg text-sm font-semibold transition-all border
+                      ${form.pass_type === p ? 'bg-brand text-white border-brand' : 'bg-white text-gray-500 border-gray-200 hover:border-brand'}`}>
+                    {p}
+                  </button>
+                ))}
+              </div>
+            </div>
             {[
               ['이름 *', 'name', 'text'],
               ['직업', 'occupation', 'text'],
