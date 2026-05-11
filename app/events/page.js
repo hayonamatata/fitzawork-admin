@@ -5,9 +5,9 @@ import Modal from '@/components/Modal'
 import { Plus, Pencil, Trash2 } from 'lucide-react'
 
 const STATUS_OPTIONS = ['기획중', '확정', '완료']
-const TYPE_OPTIONS   = ['자체기획', '외부협업', '자체+협업']
+const TYPE_OPTIONS   = ['대관', '행사', '모임', '자체기획', '외부협업', '자체+협업']
 const STATUS_COLOR   = { 확정: 'bg-green-100 text-green-700', 기획중: 'bg-blue-100 text-blue-700', 완료: 'bg-gray-100 text-gray-500' }
-const EMPTY = { name:'', type:'자체기획', start_date:'', end_date:'', time:'', duration:'', space_setup:'', expected_attendees:'', revenue:'', partner:'', status:'기획중', notes:'' }
+const EMPTY = { name:'', type:'대관', start_date:'', end_date:'', time:'', duration:'', space_setup:'', expected_attendees:'', revenue:'', partner:'', status:'기획중', poster_url:'', notes:'' }
 
 export default function EventsPage() {
   const [events, setEvents] = useState([])
@@ -79,7 +79,9 @@ export default function EventsPage() {
               : filtered.map(ev => (
                 <tr key={ev.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                   <td className="px-4 py-3.5 font-semibold text-gray-800">{ev.name}</td>
-                  <td className="px-4 py-3.5 text-gray-600">{ev.type}</td>
+                  <td className="px-4 py-3.5">
+                    <span className={`text-xs px-2 py-0.5 rounded font-medium ${ev.type==='대관' ? 'bg-purple-100 text-purple-700' : ev.type==='행사' ? 'bg-orange-100 text-orange-700' : ev.type==='모임' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'}`}>{ev.type}</span>
+                  </td>
                   <td className="px-4 py-3.5 text-gray-600">{ev.start_date}{ev.end_date && ev.end_date !== ev.start_date ? ` ~ ${ev.end_date}` : ''}</td>
                   <td className="px-4 py-3.5 text-gray-600">{ev.time || '-'}</td>
                   <td className="px-4 py-3.5 text-gray-600">{ev.partner || '-'}</td>
@@ -103,7 +105,7 @@ export default function EventsPage() {
       {modal === 'edit' && (
         <Modal title={editId ? '이벤트 수정' : '이벤트 추가'} onClose={() => setModal(null)}>
           <div className="space-y-4">
-            {[['이벤트명','name','text'],['시작일','start_date','date'],['종료일','end_date','date'],['시간','time','text'],['기간','duration','text'],['장소 구성','space_setup','text'],['예상 인원','expected_attendees','number'],['수익(원)','revenue','number'],['파트너','partner','text']].map(([label, key, type]) => (
+            {[['이벤트명','name','text'],['시작일','start_date','date'],['종료일','end_date','date'],['시간','time','text'],['기간','duration','text'],['장소 구성','space_setup','text'],['예상 인원','expected_attendees','number'],['수익(원)','revenue','number'],['파트너','partner','text'],['포스터/아카이브 URL','poster_url','text']].map(([label, key, type]) => (
               <div key={key}>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">{label}</label>
                 <input type={type} value={form[key] || ''} onChange={e => setForm(p => ({...p,[key]:e.target.value}))}

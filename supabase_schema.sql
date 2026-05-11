@@ -65,12 +65,65 @@ CREATE TABLE promotions (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 멤버 관리
+CREATE TABLE members (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR NOT NULL,
+  occupation VARCHAR,
+  contact VARCHAR,
+  instagram VARCHAR,
+  attendance_count INTEGER DEFAULT 0,
+  issue TEXT,
+  status VARCHAR DEFAULT '활성',
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 비품 관리
+CREATE TABLE supplies (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name VARCHAR NOT NULL,
+  category VARCHAR DEFAULT '비품',
+  current_qty NUMERIC DEFAULT 0,
+  unit VARCHAR DEFAULT '개',
+  min_qty NUMERIC DEFAULT 1,
+  notes TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 오픈/마감 체크리스트 항목
+CREATE TABLE checklist_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  type VARCHAR NOT NULL,
+  content VARCHAR NOT NULL,
+  description TEXT,
+  order_num INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 매뉴얼 가이드
+CREATE TABLE manual_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  category VARCHAR NOT NULL,
+  title VARCHAR NOT NULL,
+  content TEXT,
+  order_num INTEGER DEFAULT 0,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 이벤트 테이블에 포스터 URL 컬럼 추가 (기존 테이블이 있는 경우)
+ALTER TABLE events ADD COLUMN IF NOT EXISTS poster_url TEXT;
+
 -- RLS 비활성화 (내부 어드민용 — 나중에 로그인 기능 추가 시 변경)
 ALTER TABLE events DISABLE ROW LEVEL SECURITY;
 ALTER TABLE membership_monthly DISABLE ROW LEVEL SECURITY;
 ALTER TABLE daily_visits DISABLE ROW LEVEL SECURITY;
 ALTER TABLE sns_content DISABLE ROW LEVEL SECURITY;
 ALTER TABLE promotions DISABLE ROW LEVEL SECURITY;
+ALTER TABLE members DISABLE ROW LEVEL SECURITY;
+ALTER TABLE supplies DISABLE ROW LEVEL SECURITY;
+ALTER TABLE checklist_items DISABLE ROW LEVEL SECURITY;
+ALTER TABLE manual_items DISABLE ROW LEVEL SECURITY;
 
 -- 초기 이벤트 데이터 (확정/기획중 이벤트)
 INSERT INTO events (name, type, start_date, end_date, time, duration, partner, status, notes) VALUES

@@ -1,14 +1,15 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { LayoutDashboard, CalendarDays, Users, Megaphone, Image } from 'lucide-react'
+import { LayoutDashboard, CalendarDays, Users, Package, ClipboardList, BookOpen } from 'lucide-react'
 
 const nav = [
-  { href: '/',            label: '대시보드',    icon: LayoutDashboard },
-  { href: '/events',      label: '이벤트 관리', icon: CalendarDays },
-  { href: '/membership',  label: '멤버십 관리', icon: Users },
-  { href: '/sns',         label: 'SNS 콘텐츠',  icon: Image },
-  { href: '/promotions',  label: '프로모션',    icon: Megaphone },
+  { href: '/',           label: '대시보드',      icon: LayoutDashboard },
+  { href: '/members',    label: '멤버 관리',      icon: Users },
+  { href: '/events',     label: '이벤트 관리',    icon: CalendarDays },
+  { href: '/supplies',   label: '비품 관리',      icon: Package },
+  { href: '/checklist',  label: '해야할 리스트',  icon: ClipboardList },
+  { href: '/manual',     label: '매뉴얼 가이드',  icon: BookOpen },
 ]
 
 export default function Sidebar() {
