@@ -111,9 +111,13 @@ export default function EventsPage() {
 
   const eventsForDay = (day) => {
     const d = `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+    const jsDay = new Date(d + 'T00:00:00').getDay()
     return events.filter(ev => {
       if (!ev.start_date) return false
-      return d >= ev.start_date && d <= (ev.end_date || ev.start_date)
+      if (d < ev.start_date || d > (ev.end_date || ev.start_date)) return false
+      // 반복 요일이 있으면 해당 요일에만 표시
+      if (ev.day_of_week) return jsDay === DAY_MAP[ev.day_of_week]
+      return true
     })
   }
 
