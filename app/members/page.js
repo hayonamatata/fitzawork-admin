@@ -144,7 +144,6 @@ export default function MembersPage() {
                     </div>
                   </td>
                 </tr>
-                </tr>
               ))
             }
           </tbody>
