@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import Modal from '@/components/Modal'
+import Link from 'next/link'
 import { Plus, Pencil, Trash2, Calendar, List, ChevronLeft, ChevronRight } from 'lucide-react'
 
 const STATUS_OPTIONS = ['기획중', '확정', '완료']
@@ -180,7 +181,9 @@ export default function EventsPage() {
                   return (
                     <tr key={ev.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
                       <td className="px-4 py-3.5">
-                        <p className="font-semibold text-gray-800">{ev.name}</p>
+                        <Link href={`/events/${ev.id}`} className="font-semibold text-gray-800 hover:text-brand transition-colors">
+                          {ev.name}
+                        </Link>
                         {ev.fee_type !== '무료' && ev.unit_price &&
                           <p className="text-xs text-gray-400 mt-0.5">{fmtMoney(t)}</p>}
                       </td>
