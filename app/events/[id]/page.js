@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
-import { ArrowLeft, Plus, Trash2, Share2, Check, X } from 'lucide-react'
+import { ArrowLeft, Plus, Trash2, Share2, Check } from 'lucide-react'
 
 const TYPE_COLOR = {
   '대관': 'bg-purple-100 text-purple-700',
@@ -17,36 +17,53 @@ const STATUS_COLOR = {
 }
 const STATUS_CYCLE = { 미시작: '진행중', 진행중: '완료', 완료: '보류', 보류: '미시작' }
 
+// 카테고리 컬러 팔레트 (순서대로 배정)
+const CATEGORY_PALETTE = [
+  'bg-purple-100 text-purple-700',
+  'bg-orange-100 text-orange-700',
+  'bg-blue-100 text-blue-700',
+  'bg-green-100 text-green-700',
+  'bg-yellow-100 text-yellow-700',
+  'bg-pink-100 text-pink-700',
+  'bg-teal-100 text-teal-700',
+  'bg-indigo-100 text-indigo-700',
+]
+const getCategoryColor = (name, categories) => {
+  if (!name) return ''
+  const idx = categories.indexOf(name)
+  return idx === -1 ? 'bg-gray-100 text-gray-500' : CATEGORY_PALETTE[idx % CATEGORY_PALETTE.length]
+}
+
 const TASK_TEMPLATES = {
   '대관': [
-    { name: '계약서 확인',       category: '운영',     assignee: '' },
-    { name: '보증금 수령',        category: '운영',     assignee: '' },
-    { name: '공간 안내 문자 발송', category: '운영',     assignee: '' },
-    { name: '당일 세팅',          category: '운영',     assignee: '' },
-    { name: '이용 후 정산',        category: '운영',     assignee: '' },
+    { name: '계약서 확인',        category: '운영',      assignee: '' },
+    { name: '보증금 수령',         category: '운영',      assignee: '' },
+    { name: '공간 안내 문자 발송',  category: '운영',      assignee: '' },
+    { name: '당일 세팅',           category: '운영',      assignee: '' },
+    { name: '이용 후 정산',         category: '운영',      assignee: '' },
   ],
   '크리에이터 전시/팝업': [
-    { name: '작가 미팅',    category: '운영',    assignee: '' },
-    { name: '자료 수집',    category: '콘텐츠',  assignee: '' },
-    { name: '디자인 작업',  category: '디자인',  assignee: '' },
-    { name: '인쇄 발주',    category: '제작/발주', assignee: '' },
-    { name: '공간 세팅',    category: '운영',    assignee: '' },
-    { name: '오프닝 진행',  category: '운영',    assignee: '' },
-    { name: '아카이빙',     category: '운영',    assignee: '' },
+    { name: '작가 미팅',   category: '운영',      assignee: '' },
+    { name: '자료 수집',   category: '콘텐츠',    assignee: '' },
+    { name: '디자인 작업', category: '디자인',    assignee: '' },
+    { name: '인쇄 발주',   category: '제작/발주', assignee: '' },
+    { name: '공간 세팅',   category: '운영',      assignee: '' },
+    { name: '오프닝 진행', category: '운영',      assignee: '' },
+    { name: '아카이빙',    category: '운영',      assignee: '' },
   ],
   '프로그램': [
-    { name: '참가자 모집',   category: '운영',     assignee: '' },
+    { name: '참가자 모집',   category: '운영',      assignee: '' },
     { name: '재료 준비',     category: '제작/발주', assignee: '' },
-    { name: '공간 세팅',     category: '운영',     assignee: '' },
-    { name: '프로그램 진행', category: '운영',     assignee: '' },
-    { name: '후기 수집',     category: '운영',     assignee: '' },
+    { name: '공간 세팅',     category: '운영',      assignee: '' },
+    { name: '프로그램 진행', category: '운영',      assignee: '' },
+    { name: '후기 수집',     category: '운영',      assignee: '' },
   ],
 }
 
-// 커스텀 셀렉트 컴포넌트 (새 항목 추가 가능)
-function CreatableSelect({ value, options, onSelect, onCreate, placeholder = '-' }) {
-  const [open,   setOpen]   = useState(false)
-  const [input,  setInput]  = useState('')
+// 커스텀 셀렉트 (새 항목 추가 가능 + 컬러 뱃지 지원)
+function CreatableSelect({ value, options, onSelect, onCreate, placeholder = '-', getColor }) {
+  const [open,  setOpen]  = useState(false)
+  const [input, setInput] = useState('')
   const ref = useRef(null)
 
   useEffect(() => {
@@ -55,18 +72,24 @@ function CreatableSelect({ value, options, onSelect, onCreate, placeholder = '-'
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const filtered = options.filter(o => o.toLowerCase().includes(input.toLowerCase()))
+  const filtered  = options.filter(o => o.toLowerCase().includes(input.toLowerCase()))
   const canCreate = input.trim() && !options.includes(input.trim())
+  const colorCls  = getColor && value ? getColor(value) : ''
 
   return (
     <div ref={ref} className="relative">
       <button
         onClick={() => { setOpen(!open); setInput('') }}
-        className="text-xs text-gray-600 hover:text-brand transition-colors text-left w-full truncate">
-        {value || <span className="text-gray-300">{placeholder}</span>}
+        className="text-left w-full">
+        {value
+          ? colorCls
+            ? <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${colorCls}`}>{value}</span>
+            : <span className="text-xs text-gray-600">{value}</span>
+          : <span className="text-xs text-gray-300">{placeholder}</span>
+        }
       </button>
       {open && (
-        <div className="absolute left-0 top-6 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[140px]">
+        <div className="absolute left-0 top-7 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[150px]">
           <input
             autoFocus
             value={input}
@@ -81,13 +104,18 @@ function CreatableSelect({ value, options, onSelect, onCreate, placeholder = '-'
                 - 비우기
               </button>
             )}
-            {filtered.map(o => (
-              <button key={o} onClick={() => { onSelect(o); setOpen(false) }}
-                className={`w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors
-                  ${value === o ? 'text-brand font-semibold' : 'text-gray-700'}`}>
-                {o}
-              </button>
-            ))}
+            {filtered.map(o => {
+              const oc = getColor ? getColor(o) : ''
+              return (
+                <button key={o} onClick={() => { onSelect(o); setOpen(false) }}
+                  className="w-full text-left px-3 py-1.5 text-xs hover:bg-gray-50 transition-colors flex items-center gap-2">
+                  {oc
+                    ? <span className={`px-2 py-0.5 rounded-full font-medium ${oc} ${value === o ? 'ring-2 ring-offset-1 ring-current' : ''}`}>{o}</span>
+                    : <span className={value === o ? 'font-semibold text-brand' : 'text-gray-700'}>{o}</span>
+                  }
+                </button>
+              )
+            })}
             {canCreate && (
               <button onClick={() => { onCreate(input.trim()); onSelect(input.trim()); setOpen(false) }}
                 className="w-full text-left px-3 py-1.5 text-xs text-brand font-semibold hover:bg-brand/5 border-t border-gray-100">
@@ -102,8 +130,8 @@ function CreatableSelect({ value, options, onSelect, onCreate, placeholder = '-'
 }
 
 export default function EventDetailPage() {
-  const { id } = useParams()
-  const router  = useRouter()
+  const { id }   = useParams()
+  const router   = useRouter()
   const [event,      setEvent]      = useState(null)
   const [tasks,      setTasks]      = useState([])
   const [categories, setCategories] = useState([])
@@ -111,6 +139,7 @@ export default function EventDetailPage() {
   const [copied,     setCopied]     = useState(false)
   const [editingId,  setEditingId]  = useState(null)
   const [editName,   setEditName]   = useState('')
+  const [filterCat,  setFilterCat]  = useState('')
   const inputRef = useRef(null)
 
   const loadCategories = async () => {
@@ -155,8 +184,7 @@ export default function EventDetailPage() {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, [field]: value } : t))
   }
 
-  const cycleStatus = (t) => updateField(t.id, 'status', STATUS_CYCLE[t.status] || '미시작')
-
+  const cycleStatus   = (t) => updateField(t.id, 'status', STATUS_CYCLE[t.status] || '미시작')
   const startEditName = (t) => { setEditingId(t.id); setEditName(t.name) }
   const saveEditName  = async () => {
     if (editingId && editName.trim()) await updateField(editingId, 'name', editName.trim())
@@ -167,7 +195,6 @@ export default function EventDetailPage() {
     await supabase.from('event_tasks').insert([{ event_id: id, name: '새 태스크', category: '', assignee: '', status: '미시작', order_num: tasks.length }])
     await reload()
   }
-
   const removeTask = async (tid) => {
     await supabase.from('event_tasks').delete().eq('id', tid)
     setTasks(prev => prev.filter(t => t.id !== tid))
@@ -188,8 +215,10 @@ export default function EventDetailPage() {
     setTimeout(() => setCopied(false), 2000)
   }
 
-  const done     = tasks.filter(t => t.status === '완료').length
-  const progress = tasks.length ? Math.round((done / tasks.length) * 100) : 0
+  const done         = tasks.filter(t => t.status === '완료').length
+  const progress     = tasks.length ? Math.round((done / tasks.length) * 100) : 0
+  const usedCats     = [...new Set(tasks.map(t => t.category).filter(Boolean))]
+  const displayTasks = filterCat ? tasks.filter(t => t.category === filterCat) : tasks
 
   if (!event) return <div className="p-8 text-gray-400 text-sm">불러오는 중...</div>
 
@@ -238,6 +267,30 @@ export default function EventDetailPage() {
 
       {/* 태스크 테이블 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+
+        {/* 카테고리 필터 */}
+        {usedCats.length > 0 && (
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center gap-2 flex-wrap">
+            <button onClick={() => setFilterCat('')}
+              className={`text-xs px-3 py-1 rounded-full font-medium transition-colors
+                ${filterCat === '' ? 'bg-gray-800 text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}>
+              전체
+            </button>
+            {usedCats.map(cat => {
+              const cc = getCategoryColor(cat, categories)
+              const isActive = filterCat === cat
+              return (
+                <button key={cat} onClick={() => setFilterCat(isActive ? '' : cat)}
+                  className={`text-xs px-3 py-1 rounded-full font-medium transition-all
+                    ${cc} ${isActive ? 'ring-2 ring-offset-1 ring-current' : 'opacity-60 hover:opacity-100'}`}>
+                  {cat}
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* 테이블 헤더 */}
         <div className="grid grid-cols-[2fr_1fr_1fr_1fr_36px] border-b border-gray-100 bg-gray-50 text-xs text-gray-400 font-semibold">
           <div className="px-5 py-3">태스크명</div>
           <div className="px-3 py-3">카테고리</div>
@@ -246,11 +299,13 @@ export default function EventDetailPage() {
           <div />
         </div>
 
-        {tasks.length === 0 && (
-          <p className="text-center text-gray-400 text-sm py-12">태스크가 없습니다</p>
+        {displayTasks.length === 0 && (
+          <p className="text-center text-gray-400 text-sm py-12">
+            {filterCat ? `'${filterCat}' 카테고리 태스크가 없습니다` : '태스크가 없습니다'}
+          </p>
         )}
 
-        {tasks.map(t => (
+        {displayTasks.map(t => (
           <div key={t.id}
             className="group grid grid-cols-[2fr_1fr_1fr_1fr_36px] border-b border-gray-50 hover:bg-gray-50/40 transition-colors items-center min-h-[48px]">
 
@@ -269,17 +324,18 @@ export default function EventDetailPage() {
               }
             </div>
 
-            {/* 카테고리 — 커스텀 셀렉트 */}
+            {/* 카테고리 — 컬러 뱃지 */}
             <div className="px-3 py-2.5">
               <CreatableSelect
                 value={t.category}
                 options={categories}
                 onSelect={(v) => updateField(t.id, 'category', v)}
                 onCreate={createCategory}
+                getColor={(v) => getCategoryColor(v, categories)}
               />
             </div>
 
-            {/* 담당자 — 커스텀 셀렉트 */}
+            {/* 담당자 */}
             <div className="px-3 py-2.5">
               <CreatableSelect
                 value={t.assignee}
@@ -307,10 +363,12 @@ export default function EventDetailPage() {
           </div>
         ))}
 
-        <button onClick={addTask}
-          className="w-full flex items-center gap-2 px-5 py-3 text-sm text-gray-400 hover:text-brand hover:bg-gray-50/50 transition-colors">
-          <Plus size={14} /> 태스크 추가
-        </button>
+        {!filterCat && (
+          <button onClick={addTask}
+            className="w-full flex items-center gap-2 px-5 py-3 text-sm text-gray-400 hover:text-brand hover:bg-gray-50/50 transition-colors">
+            <Plus size={14} /> 태스크 추가
+          </button>
+        )}
       </div>
     </div>
   )

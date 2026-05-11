@@ -325,7 +325,7 @@ export default function MembersPage() {
             </div>
             <div>
               <label className="block text-xs font-semibold text-gray-600 mb-1">성함 <span className="text-gray-400 font-normal">(쉼표로 구분)</span></label>
-              <input type="text" placeholder="예: 김하연, 이수담" value={visitForm.visitor_names} onChange={e => setVisitForm(p => ({ ...p, visitor_names: e.target.value }))}
+              <input type="text" value={visitForm.visitor_names} onChange={e => setVisitForm(p => ({ ...p, visitor_names: e.target.value }))}
                 className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand" />
             </div>
             <div>
