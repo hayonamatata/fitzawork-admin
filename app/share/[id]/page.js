@@ -9,6 +9,7 @@ const STATUS_COLOR = {
   완료:   'bg-green-100 text-green-700',
   보류:   'bg-red-100 text-red-400',
 }
+const STATUS_CYCLE = { 미시작: '진행중', 진행중: '완료', 완료: '보류', 보류: '미시작' }
 
 export default function SharePage() {
   const { id } = useParams()
@@ -28,8 +29,7 @@ export default function SharePage() {
   }, [id])
 
   const cycleStatus = async (t) => {
-    const next = { 미시작: '진행중', 진행중: '완료', 완료: '보류', 보류: '미시작' }
-    const newStatus = next[t.status]
+    const newStatus = STATUS_CYCLE[t.status] || '미시작'
     await supabase.from('event_tasks').update({ status: newStatus }).eq('id', t.id)
     setTasks(prev => prev.map(task => task.id === t.id ? { ...task, status: newStatus } : task))
   }
@@ -57,7 +57,7 @@ export default function SharePage() {
         </p>
       </div>
 
-      <div className="p-5 max-w-lg mx-auto">
+      <div className="p-5 max-w-2xl mx-auto">
         {/* 진행률 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-4">
           <div className="flex justify-between text-sm mb-2">
@@ -65,36 +65,49 @@ export default function SharePage() {
             <span className="font-bold text-brand">{done}/{tasks.length} 완료 · {progress}%</span>
           </div>
           <div className="w-full bg-gray-100 rounded-full h-2.5">
-            <div className="bg-brand h-2.5 rounded-full transition-all duration-500"
-              style={{ width: `${progress}%` }} />
+            <div className="bg-brand h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
           </div>
         </div>
 
-        {/* 태스크 목록 */}
+        {/* 태스크 테이블 */}
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-          <div className="px-5 py-4 border-b border-gray-100">
-            <h2 className="text-sm font-bold text-gray-800">준비 태스크</h2>
-            <p className="text-xs text-gray-400 mt-0.5">상태 버튼을 눌러 업데이트해주세요</p>
+          {/* 헤더 */}
+          <div className="grid grid-cols-[2fr_1fr_1fr_1fr] border-b border-gray-100 bg-gray-50 text-xs text-gray-400 font-semibold">
+            <div className="px-5 py-3">태스크명</div>
+            <div className="px-3 py-3">카테고리</div>
+            <div className="px-3 py-3">담당자</div>
+            <div className="px-3 py-3">상태</div>
           </div>
-          <div className="divide-y divide-gray-50">
-            {tasks.map(t => (
-              <div key={t.id} className="flex items-center gap-3 px-5 py-4">
-                <button onClick={() => cycleStatus(t)}
-                  className={`text-xs px-2.5 py-1.5 rounded-full font-semibold shrink-0 transition-all active:scale-95 ${STATUS_COLOR[t.status]}`}>
-                  {t.status}
-                </button>
-                <p className={`flex-1 text-sm ${t.status === '완료' ? 'line-through text-gray-300' : 'text-gray-700'}`}>
+
+          {tasks.map(t => (
+            <div key={t.id}
+              className="grid grid-cols-[2fr_1fr_1fr_1fr] border-b border-gray-50 items-center">
+              <div className="px-5 py-3.5">
+                <span className={`text-sm ${t.status === '완료' ? 'line-through text-gray-300' : 'text-gray-800'}`}>
                   {t.name}
-                </p>
+                </span>
               </div>
-            ))}
-            {tasks.length === 0 && (
-              <p className="text-center text-gray-400 text-sm py-10">태스크가 없습니다</p>
-            )}
+              <div className="px-3 py-3.5 text-xs text-gray-400">{t.category || '-'}</div>
+              <div className="px-3 py-3.5 text-xs text-gray-500 font-medium">{t.assignee || '-'}</div>
+              <div className="px-3 py-3.5">
+                <button onClick={() => cycleStatus(t)}
+                  className={`text-xs px-2.5 py-1 rounded-full font-semibold transition-all active:scale-95 ${STATUS_COLOR[t.status] || 'bg-gray-100 text-gray-500'}`}>
+                  {t.status || '미시작'}
+                </button>
+              </div>
+            </div>
+          ))}
+
+          {tasks.length === 0 && (
+            <p className="text-center text-gray-400 text-sm py-10">태스크가 없습니다</p>
+          )}
+
+          <div className="px-5 py-3 border-t border-gray-50">
+            <p className="text-xs text-gray-400">상태 버튼을 눌러 업데이트해주세요</p>
           </div>
         </div>
 
-        <p className="text-center text-xs text-gray-300 mt-6">powered by 핏자워크라운지</p>
+        <p className="text-center text-xs text-gray-300 mt-6">핏자워크라운지</p>
       </div>
     </div>
   )

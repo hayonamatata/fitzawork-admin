@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 import { ArrowLeft, Plus, Trash2, Share2, Check } from 'lucide-react'
@@ -15,19 +15,45 @@ const STATUS_COLOR = {
   완료:   'bg-green-100 text-green-700',
   보류:   'bg-red-100 text-red-400',
 }
+const CATEGORY_OPTIONS = ['디자인', '제작/발주', '콘텐츠', '운영', '기타']
+const ASSIGNEE_OPTIONS  = ['하연', '수담님', '공동', '외부업체']
+const STATUS_CYCLE      = { 미시작: '진행중', 진행중: '완료', 완료: '보류', 보류: '미시작' }
+
 const TASK_TEMPLATES = {
-  '대관':            ['계약서 확인', '보증금 수령', '공간 안내 문자 발송', '당일 세팅', '이용 후 정산'],
-  '크리에이터 전시/팝업': ['작가 미팅', '자료 수집', '디자인 작업', '인쇄 발주', '공간 세팅', '오프닝 진행', '아카이빙'],
-  '프로그램':         ['참가자 모집', '재료 준비', '공간 세팅', '프로그램 진행', '후기 수집'],
+  '대관': [
+    { name: '계약서 확인',       category: '운영',    assignee: '하연' },
+    { name: '보증금 수령',        category: '운영',    assignee: '하연' },
+    { name: '공간 안내 문자 발송', category: '운영',    assignee: '하연' },
+    { name: '당일 세팅',          category: '운영',    assignee: '하연' },
+    { name: '이용 후 정산',        category: '운영',    assignee: '하연' },
+  ],
+  '크리에이터 전시/팝업': [
+    { name: '작가 미팅',    category: '운영',    assignee: '공동'   },
+    { name: '자료 수집',    category: '콘텐츠',  assignee: '수담님' },
+    { name: '디자인 작업',  category: '디자인',  assignee: '하연'   },
+    { name: '인쇄 발주',    category: '제작/발주', assignee: '하연'  },
+    { name: '공간 세팅',    category: '운영',    assignee: '공동'   },
+    { name: '오프닝 진행',  category: '운영',    assignee: '공동'   },
+    { name: '아카이빙',     category: '운영',    assignee: '공동'   },
+  ],
+  '프로그램': [
+    { name: '참가자 모집',   category: '운영',    assignee: '하연' },
+    { name: '재료 준비',     category: '제작/발주', assignee: '하연' },
+    { name: '공간 세팅',     category: '운영',    assignee: '하연' },
+    { name: '프로그램 진행', category: '운영',    assignee: '하연' },
+    { name: '후기 수집',     category: '운영',    assignee: '하연' },
+  ],
 }
 
 export default function EventDetailPage() {
   const { id } = useParams()
   const router  = useRouter()
-  const [event,   setEvent]   = useState(null)
-  const [tasks,   setTasks]   = useState([])
-  const [newTask, setNewTask] = useState('')
-  const [copied,  setCopied]  = useState(false)
+  const [event,     setEvent]     = useState(null)
+  const [tasks,     setTasks]     = useState([])
+  const [copied,    setCopied]    = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editName,  setEditName]  = useState('')
+  const inputRef = useRef(null)
 
   useEffect(() => {
     const init = async () => {
@@ -35,11 +61,9 @@ export default function EventDetailPage() {
       setEvent(ev)
       const { data: ts } = await supabase.from('event_tasks').select('*').eq('event_id', id).order('order_num')
       if ((ts || []).length === 0 && ev) {
-        const templates = TASK_TEMPLATES[ev.type] || []
+        const templates = (TASK_TEMPLATES[ev.type] || []).map((t, i) => ({ event_id: id, ...t, status: '미시작', order_num: i }))
         if (templates.length > 0) {
-          await supabase.from('event_tasks').insert(
-            templates.map((name, i) => ({ event_id: id, name, status: '미시작', order_num: i }))
-          )
+          await supabase.from('event_tasks').insert(templates)
           const { data: fresh } = await supabase.from('event_tasks').select('*').eq('event_id', id).order('order_num')
           setTasks(fresh || [])
         }
@@ -50,22 +74,33 @@ export default function EventDetailPage() {
     init()
   }, [id])
 
-  const reloadTasks = async () => {
+  useEffect(() => {
+    if (editingId && inputRef.current) inputRef.current.focus()
+  }, [editingId])
+
+  const reload = async () => {
     const { data } = await supabase.from('event_tasks').select('*').eq('event_id', id).order('order_num')
     setTasks(data || [])
   }
 
-  const cycleStatus = async (t) => {
-    const next = { 미시작: '진행중', 진행중: '완료', 완료: '보류', 보류: '미시작' }
-    await supabase.from('event_tasks').update({ status: next[t.status] }).eq('id', t.id)
-    reloadTasks()
+  const updateField = async (taskId, field, value) => {
+    await supabase.from('event_tasks').update({ [field]: value }).eq('id', taskId)
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, [field]: value } : t))
+  }
+
+  const cycleStatus = (t) => updateField(t.id, 'status', STATUS_CYCLE[t.status] || '미시작')
+
+  const startEditName = (t) => { setEditingId(t.id); setEditName(t.name) }
+  const saveEditName  = async () => {
+    if (editingId && editName.trim()) await updateField(editingId, 'name', editName.trim())
+    setEditingId(null); setEditName('')
   }
 
   const addTask = async () => {
-    if (!newTask.trim()) return
-    await supabase.from('event_tasks').insert([{ event_id: id, name: newTask, status: '미시작', order_num: tasks.length }])
-    setNewTask('')
-    reloadTasks()
+    await supabase.from('event_tasks').insert([{
+      event_id: id, name: '새 태스크', category: '', assignee: '', status: '미시작', order_num: tasks.length
+    }])
+    await reload()
   }
 
   const removeTask = async (tid) => {
@@ -85,15 +120,15 @@ export default function EventDetailPage() {
   if (!event) return <div className="p-8 text-gray-400 text-sm">불러오는 중...</div>
 
   return (
-    <div className="p-8 max-w-2xl">
-      {/* Back */}
+    <div className="p-8">
+      {/* 뒤로 */}
       <button onClick={() => router.push('/events')}
         className="flex items-center gap-1.5 text-sm text-gray-400 hover:text-gray-600 mb-6 transition-colors">
         <ArrowLeft size={15} /> 이벤트 목록
       </button>
 
-      {/* Event Info */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-5">
+      {/* 이벤트 정보 카드 */}
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6">
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-2">
@@ -121,60 +156,104 @@ export default function EventDetailPage() {
           </button>
         </div>
 
-        {tasks.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-gray-50">
-            <div className="flex justify-between text-xs text-gray-500 mb-1.5">
-              <span>준비 진행률</span>
-              <span className="font-bold text-brand">{done}/{tasks.length} · {progress}%</span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-2">
-              <div className="bg-brand h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
-            </div>
+        {/* 진행률 */}
+        <div className="mt-4 pt-4 border-t border-gray-50">
+          <div className="flex justify-between text-xs text-gray-500 mb-1.5">
+            <span>준비 진행률</span>
+            <span className="font-bold text-brand">{done}/{tasks.length} · {progress}%</span>
           </div>
-        )}
+          <div className="w-full bg-gray-100 rounded-full h-2">
+            <div className="bg-brand h-2 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+          </div>
+        </div>
       </div>
 
-      {/* Tasks */}
+      {/* 태스크 테이블 */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        <div className="px-5 py-4 border-b border-gray-100">
-          <h3 className="text-sm font-bold text-gray-800">준비 태스크</h3>
-          <p className="text-xs text-gray-400 mt-0.5">상태 버튼 클릭으로 업데이트 · 협업 링크로 외부 공유 가능</p>
+        {/* 테이블 헤더 */}
+        <div className="grid grid-cols-[2fr_1fr_1fr_1fr_40px] border-b border-gray-100 bg-gray-50 text-xs text-gray-400 font-semibold">
+          <div className="px-5 py-3">태스크명</div>
+          <div className="px-3 py-3">카테고리</div>
+          <div className="px-3 py-3">담당자</div>
+          <div className="px-3 py-3">상태</div>
+          <div />
         </div>
-        <div className="divide-y divide-gray-50">
-          {tasks.length === 0 && (
-            <p className="text-center text-gray-400 text-sm py-10">태스크가 없습니다</p>
-          )}
-          {tasks.map(t => (
-            <div key={t.id} className="group flex items-center gap-3 px-5 py-3.5 hover:bg-gray-50/50 transition-colors">
-              <button onClick={() => cycleStatus(t)}
-                className={`text-xs px-2.5 py-1 rounded-full font-semibold shrink-0 transition-all hover:opacity-70 ${STATUS_COLOR[t.status]}`}>
-                {t.status}
+
+        {/* 태스크 행 */}
+        {tasks.length === 0 && (
+          <p className="text-center text-gray-400 text-sm py-12">태스크가 없습니다</p>
+        )}
+        {tasks.map(t => (
+          <div key={t.id}
+            className="group grid grid-cols-[2fr_1fr_1fr_1fr_40px] border-b border-gray-50 hover:bg-gray-50/40 transition-colors items-center">
+
+            {/* 태스크명 — 클릭해서 인라인 편집 */}
+            <div className="px-5 py-3">
+              {editingId === t.id
+                ? <input
+                    ref={inputRef}
+                    value={editName}
+                    onChange={e => setEditName(e.target.value)}
+                    onBlur={saveEditName}
+                    onKeyDown={e => { if (e.key === 'Enter') saveEditName(); if (e.key === 'Escape') { setEditingId(null); setEditName('') } }}
+                    className="w-full text-sm border-b border-brand outline-none bg-transparent pb-0.5"
+                  />
+                : <span
+                    onClick={() => startEditName(t)}
+                    className={`text-sm cursor-text block ${t.status === '완료' ? 'line-through text-gray-300' : 'text-gray-800'}`}>
+                    {t.name || <span className="text-gray-300">클릭해서 입력</span>}
+                  </span>
+              }
+            </div>
+
+            {/* 카테고리 */}
+            <div className="px-3 py-2.5">
+              <select
+                value={t.category || ''}
+                onChange={e => updateField(t.id, 'category', e.target.value)}
+                className="text-xs text-gray-600 bg-transparent border-none outline-none cursor-pointer w-full">
+                <option value="">-</option>
+                {CATEGORY_OPTIONS.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+
+            {/* 담당자 */}
+            <div className="px-3 py-2.5">
+              <select
+                value={t.assignee || ''}
+                onChange={e => updateField(t.id, 'assignee', e.target.value)}
+                className="text-xs text-gray-600 bg-transparent border-none outline-none cursor-pointer w-full">
+                <option value="">-</option>
+                {ASSIGNEE_OPTIONS.map(a => <option key={a} value={a}>{a}</option>)}
+              </select>
+            </div>
+
+            {/* 상태 */}
+            <div className="px-3 py-2.5">
+              <button
+                onClick={() => cycleStatus(t)}
+                className={`text-xs px-2.5 py-1 rounded-full font-semibold transition-all hover:opacity-70 ${STATUS_COLOR[t.status] || 'bg-gray-100 text-gray-500'}`}>
+                {t.status || '미시작'}
               </button>
-              <p className={`flex-1 text-sm ${t.status === '완료' ? 'line-through text-gray-300' : 'text-gray-700'}`}>
-                {t.name}
-              </p>
-              <button onClick={() => removeTask(t.id)}
-                className="text-gray-200 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all shrink-0">
+            </div>
+
+            {/* 삭제 */}
+            <div className="flex justify-center">
+              <button
+                onClick={() => removeTask(t.id)}
+                className="text-gray-200 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-all">
                 <Trash2 size={14} />
               </button>
             </div>
-          ))}
-        </div>
-        {/* 태스크 추가 인풋 */}
-        <div className="px-5 py-3 border-t border-gray-100 flex gap-2">
-          <input
-            type="text"
-            placeholder="태스크 추가 후 Enter"
-            value={newTask}
-            onChange={e => setNewTask(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && addTask()}
-            className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand/30 focus:border-brand"
-          />
-          <button onClick={addTask}
-            className="bg-brand text-white px-3 py-2 rounded-lg hover:bg-brand-dark transition-colors">
-            <Plus size={15} />
-          </button>
-        </div>
+          </div>
+        ))}
+
+        {/* 행 추가 버튼 */}
+        <button
+          onClick={addTask}
+          className="w-full flex items-center gap-2 px-5 py-3 text-sm text-gray-400 hover:text-brand hover:bg-gray-50/50 transition-colors">
+          <Plus size={14} /> 태스크 추가
+        </button>
       </div>
     </div>
   )
